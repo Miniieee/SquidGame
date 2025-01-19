@@ -1,87 +1,118 @@
 using UnityEngine;
-using Unity.Cinemachine;  // Make sure you have using Cinemachine for CinemachineVirtualCamera
-using System.Collections.Generic;
+using Unity.Cinemachine;  // If using Cinemachine; otherwise adjust accordingly
 
 public class PlayerScan : MonoBehaviour
 {
-    private GameObject[] players;
+    [Header("Thresholds")]
+    [SerializeField] private float positionThreshold = 0.1f;
+    [SerializeField] private float rotationThreshold = 5f; // degrees per Euler axis
+    
+    [Header("Layer Setup")]
+    [SerializeField] private string groundLayerName = "Ground";
+    private int groundLayerIndex;
+    private int layerMaskExcludingGround;
+    
+    [SerializeField] RedGreenLightController redGreenLightController;
 
-    // We'll store the last known position and rotation of each player's Cinemachine camera
-    private Dictionary<GameObject, Vector3> lastCameraPositions;
-    private Dictionary<GameObject, Quaternion> lastCameraRotations;
+    private GameObject player;
+    private CinemachineCamera vcam;  // Or CinemachineCamera if you have a custom script
+    
+    // Store the last-known camera position/rotation
+    private Vector3 lastCameraPos;
+    private Vector3 lastCameraEuler;
 
-    [SerializeField] private float positionThreshold = 0.1f;  
-    [SerializeField] private float rotationThreshold = 5f; // in degrees
-
-    void Start()
+    private void Awake()
     {
-        // Find all GameObjects tagged "Player"
-        players = GameObject.FindGameObjectsWithTag("Player");
-
-        lastCameraPositions = new Dictionary<GameObject, Vector3>();
-        lastCameraRotations = new Dictionary<GameObject, Quaternion>();
-
-        // For each player, find the CinemachineVirtualCamera child
-        foreach (GameObject player in players)
+        // Find the layer index by name
+        groundLayerIndex = LayerMask.NameToLayer(groundLayerName);
+        if (groundLayerIndex == -1)
         {
-            CinemachineCamera vcam = player.GetComponentInChildren<CinemachineCamera>();
-            if (vcam != null)
-            {
-                // Store the camera's initial world-space position/rotation
-                lastCameraPositions[player] = vcam.transform.position;
-                lastCameraRotations[player] = vcam.transform.rotation;
-            }
-            else
-            {
-                Debug.LogWarning($"No CinemachineVirtualCamera found in {player.name} or its children.");
-            }
+            Debug.LogError($"No layer named '{groundLayerName}' found. Check your Project Settings → Tags and Layers.");
         }
+
+        // Create a mask that excludes the Ground layer
+        layerMaskExcludingGround = groundLayerIndex;
     }
 
-    void Update()
+    private void Start()
     {
-        foreach (GameObject player in players)
+        // Find the player by tag
+        player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null)
         {
-            // First, do a line-of-sight check to the *player*.
-            // This is just one way of doing it—if you prefer line of sight to the camera itself, adjust accordingly.
-            Vector3 directionToPlayer = player.transform.position - transform.position;
+            Debug.LogError("No GameObject with tag 'Player' found in the scene!");
+            enabled = false;
+            return;
+        }
 
-            if (Physics.Raycast(transform.position, directionToPlayer, out RaycastHit hit))
+        // Find the Cinemachine Virtual Camera in the player's children
+        vcam = player.GetComponentInChildren<CinemachineCamera>();
+        if (vcam == null)
+        {
+            Debug.LogError($"No CinemachineVirtualCamera found as a child of '{player.name}'.");
+            enabled = false;
+            return;
+        }
+
+        // Initialize last-known camera position and rotation (in Euler angles)
+        lastCameraPos = vcam.transform.position;
+        lastCameraEuler = vcam.transform.eulerAngles;
+    }
+    
+    public void GetLatestCameraPosition()
+    {
+        lastCameraPos = vcam.transform.position;
+        lastCameraEuler = vcam.transform.eulerAngles;
+    }
+
+    private void Update()
+    {
+        
+        if(!redGreenLightController.IsRedLight) return;
+        // Direction from this object to the player's main transform
+        Vector3 directionToPlayer = player.transform.position - transform.position;
+
+        // Raycast, ignoring Ground layer
+        if (Physics.Raycast(transform.position, directionToPlayer, out RaycastHit hit, Mathf.Infinity, ~layerMaskExcludingGround))
+        {
+            // If the first thing we hit is the player, it's not blocked
+            if (hit.collider.gameObject == player)
             {
-                // If it's truly the player we hit first, then it's not blocked
-                if (hit.collider.gameObject == player)
+                // Check the camera's current position/rotation
+                Vector3 currentCamPos = vcam.transform.position;
+                Vector3 currentCamEuler = vcam.transform.eulerAngles;
+
+                // Compare each position axis
+                bool movedOnX = Mathf.Abs(currentCamPos.x - lastCameraPos.x) > positionThreshold;
+                bool movedOnY = Mathf.Abs(currentCamPos.y - lastCameraPos.y) > positionThreshold;
+                bool movedOnZ = Mathf.Abs(currentCamPos.z - lastCameraPos.z) > positionThreshold;
+
+                bool positionChanged = (movedOnX || movedOnY || movedOnZ);
+
+                // Compare each rotation axis (Euler angles)
+                bool rotatedOnX = Mathf.Abs(Mathf.DeltaAngle(lastCameraEuler.x, currentCamEuler.x)) > rotationThreshold;
+                bool rotatedOnY = Mathf.Abs(Mathf.DeltaAngle(lastCameraEuler.y, currentCamEuler.y)) > rotationThreshold;
+                bool rotatedOnZ = Mathf.Abs(Mathf.DeltaAngle(lastCameraEuler.z, currentCamEuler.z)) > rotationThreshold;
+
+                bool rotationChanged = (rotatedOnX || rotatedOnY || rotatedOnZ);
+
+                if (positionChanged || rotationChanged)
                 {
-                    // Now check the child's camera, if it exists
-                    CinemachineCamera vcam = player.GetComponentInChildren<CinemachineCamera>();
-                    if (vcam != null)
-                    {
-                        Vector3 currentCamPos = vcam.transform.position;    // World-space position
-                        Quaternion currentCamRot = vcam.transform.rotation; // World-space rotation
-
-                        float distanceMoved = Vector3.Distance(currentCamPos, lastCameraPositions[player]);
-                        float angleMoved = Quaternion.Angle(currentCamRot, lastCameraRotations[player]);
-
-                        if (distanceMoved > positionThreshold || angleMoved > rotationThreshold)
-                        {
-                            Debug.Log($"Player '{player.name}' has been eliminated (camera moved/rotated).");
-                        }
-
-                        // Update the stored camera transform values
-                        lastCameraPositions[player] = currentCamPos;
-                        lastCameraRotations[player] = currentCamRot;
-                    }
+                    Debug.Log($"Player '{player.name}' eliminated (camera moved/rotated).");
+                    // Place any elimination logic here (destroy player, disable components, etc.)
                 }
-                else
-                {
-                    // Ray got blocked by something else first
-                    Debug.Log($"Ray blocked by {hit.collider.gameObject.name} when checking {player.name}. Skipping camera checks.");
-                }
+                
             }
             else
             {
-                // If there's no hit at all, the ray might be going off into empty space
-                Debug.Log($"No collider hit when checking {player.name}.");
+                // The ray is blocked by something else
+                Debug.Log($"Ray blocked by '{hit.collider.gameObject.name}'. Skipping checks on player '{player.name}'.");
             }
+        }
+        else
+        {
+            // We didn't hit anything (excluding the Ground layer)
+            Debug.Log($"No hit (excluding '{groundLayerName}' layer) for player '{player.name}'.");
         }
     }
 }
