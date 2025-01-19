@@ -12,6 +12,8 @@ public class PlayerScan : MonoBehaviour
     private int groundLayerIndex;
     private int layerMaskExcludingGround;
     
+    public LayerMask layerMaskExcludingGround2;
+    
     [SerializeField] RedGreenLightController redGreenLightController;
 
     private GameObject player;
