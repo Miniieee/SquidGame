@@ -5,10 +5,8 @@ using Random = UnityEngine.Random;
 
 public class RedGreenLightController : MonoBehaviour
 {
-    // This event notifies about any *light state* changes (Green, Red, etc.)
     public static event Action<LightState> OnLightStateChanged;
-
-    // Current LightState
+    
     private LightState _currentState;
     public LightState CurrentState
     {
@@ -26,17 +24,16 @@ public class RedGreenLightController : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private AudioSource audioSource;
-    [SerializeField] private AudioClip greenLoopAudio; // Plays for entire Green phase
-    [SerializeField] private AudioClip redStartAudio;  // Plays once at start of Red
+    [SerializeField] private AudioClip greenLoopAudio;
+    [SerializeField] private AudioClip redStartAudio;
 
     [Header("Head Rotation")]
     [SerializeField] private HeadRotator headRotator;
 
-    private bool _stopCycle; // If game is over or won, we stop the cycle.
+    private bool _stopCycle;
 
     private void OnEnable()
     {
-        // Listen for external signals (like GameOver or Won).
         GameManager.OnGameStateChanged += HandleGameStateChanged;
     }
 
@@ -47,20 +44,16 @@ public class RedGreenLightController : MonoBehaviour
 
     private void Start()
     {
-        // If audioSource not assigned, try local
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
-
-        // Start the repeated cycle
+        
         StartCoroutine(RedGreenCycle());
     }
 
     private IEnumerator RedGreenCycle()
     {
-        // Repeats as long as the game isn't over or won
         while (!_stopCycle)
         {
-            // --- GREEN PHASE ---
             CurrentState = LightState.Green;
             Debug.Log("Green Light");
             if (headRotator != null) headRotator.GreenlightRotateHead();
@@ -74,13 +67,11 @@ public class RedGreenLightController : MonoBehaviour
             }
             else
             {
-                // If no clip assigned, just wait a default 3 seconds
                 yield return new WaitForSeconds(3f);
             }
 
-            if (_stopCycle) yield break; // break if game ended mid-phase
-
-            // --- RED PHASE ---
+            if (_stopCycle) yield break;
+            
             CurrentState = LightState.Red;
             Debug.Log("Red Light");
             if (headRotator != null) headRotator.RedlightRotateHead();
@@ -89,8 +80,7 @@ public class RedGreenLightController : MonoBehaviour
             {
                 audioSource.PlayOneShot(redStartAudio);
             }
-
-            // Pick random Red duration
+            
             float redDuration = Random.Range(minRedDuration, maxRedDuration);
             float timer = 0f;
             while (timer < redDuration && !_stopCycle)
@@ -103,7 +93,6 @@ public class RedGreenLightController : MonoBehaviour
 
     private void HandleGameStateChanged(LightState newState)
     {
-
         if (newState is LightState.GameOver or LightState.Won)
         {
             _stopCycle = true;

@@ -26,8 +26,7 @@ public class InputManager : MonoBehaviour
 
         playerControls = new InputActions();
     }
-
-
+    
     public Vector2 GetPlayerMovement()
     {
         return playerControls.Player.Move.ReadValue<Vector2>();

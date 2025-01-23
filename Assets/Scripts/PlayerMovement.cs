@@ -38,22 +38,19 @@ public class PlayerMovement : MonoBehaviour
 
         if (groundedPlayer && playerVelocity.y < 0)
         {
-            playerVelocity.y = -2f; // Ensure the player stays grounded
+            playerVelocity.y = -2f; 
         }
 
         Vector2 input = inputManager.GetPlayerMovement();
-
-        // Calculate the camera forward and right directions
+        
         Vector3 cameraForward = cameraTransform.forward;
         Vector3 cameraRight = cameraTransform.right;
-
-        // Project camera directions onto the horizontal plane (y = 0)
+        
         cameraForward.y = 0f;
         cameraRight.y = 0f;
         cameraForward.Normalize();
         cameraRight.Normalize();
 
-        // Calculate the movement direction based on camera directions
         Vector3 moveDirection = cameraForward * input.y + cameraRight * input.x;
 
         moveDirection.Normalize();
