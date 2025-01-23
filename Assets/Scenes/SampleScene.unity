@@ -924,8 +924,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74cc688008301ec4c9cc36d081267297, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minRedDuration: 2
-  maxRedDuration: 5
+  minRedDuration: 5
+  maxRedDuration: 10
   audioSource: {fileID: 376624759}
   greenLoopAudio: {fileID: 8300000, guid: 641529cf916703f48a49e60792c59066, type: 3}
   redStartAudio: {fileID: 8300000, guid: 739a403d38ae2d34dbceac9973e8d699, type: 3}
@@ -1614,7 +1614,7 @@ MonoBehaviour:
   rotationThreshold: 5
   layerMask:
     serializedVersion: 2
-    m_Bits: 247
+    m_Bits: 243
   gameManager: {fileID: 1545962948}
 --- !u!1 &1031315432
 GameObject:
@@ -2242,7 +2242,7 @@ GameObject:
   - component: {fileID: 1720783943}
   - component: {fileID: 1720783940}
   - component: {fileID: 1720783944}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: SafeArea
   m_TagString: Untagged
   m_Icon: {fileID: 0}

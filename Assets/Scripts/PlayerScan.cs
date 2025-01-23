@@ -37,23 +37,7 @@ public class PlayerScan : MonoBehaviour
     private void Start()
     {
         player = GameObject.FindGameObjectWithTag("Player");
-        if (player == null)
-        {
-            Debug.LogError("No GameObject with tag 'Player' found!");
-            enabled = false;
-            return;
-        }
-
         vcam = player.GetComponentInChildren<CinemachineCamera>();
-        if (vcam == null)
-        {
-            Debug.LogError("No CinemachineCamera found as a child of Player.");
-            enabled = false;
-            return;
-        }
-
-        if (gameManager == null)
-            gameManager = FindObjectOfType<GameManager>();
     }
 
     private void Update()
