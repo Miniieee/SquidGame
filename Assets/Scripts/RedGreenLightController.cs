@@ -1,81 +1,114 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 using System.Collections;
+using System;
+using Random = UnityEngine.Random;
 
 public class RedGreenLightController : MonoBehaviour
 {
-    [Header("Durations (seconds)")]
+    // This event notifies about any *light state* changes (Green, Red, etc.)
+    public static event Action<LightState> OnLightStateChanged;
 
-    // We will pick a random red duration in [minGreenTime, maxGreenTime]
-    [SerializeField] private float minGreenTime = 2f;
-    [SerializeField] private float maxGreenTime = 5f;
-    
-    // We'll store the actual redLightDuration chosen each cycle
-    private float redLightDuration;
+    // Current LightState
+    private LightState _currentState;
+    public LightState CurrentState
+    {
+        get => _currentState;
+        private set
+        {
+            _currentState = value;
+            OnLightStateChanged?.Invoke(_currentState);
+        }
+    }
+
+    [Header("Durations (seconds)")]
+    [SerializeField] private float minRedDuration = 2f;
+    [SerializeField] private float maxRedDuration = 5f;
 
     [Header("References")]
-    [SerializeField] private PlayerScan playerScan; // if you need to call something on Red
     [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip greenLoopAudio; // Plays for entire Green phase
+    [SerializeField] private AudioClip redStartAudio;  // Plays once at start of Red
+
+    [Header("Head Rotation")]
     [SerializeField] private HeadRotator headRotator;
-    
-    [Header("Audio Clips")]
-    [FormerlySerializedAs("kokoaudio")]
-    [SerializeField] private AudioClip kokoAudio;   // loops during Green
-    [SerializeField] private AudioClip turnAudio;   // plays once at start of Red
-    
-    public bool IsRedLight { get; private set; }
+
+    private bool _stopCycle; // If game is over or won, we stop the cycle.
+
+    private void OnEnable()
+    {
+        // Listen for external signals (like GameOver or Won).
+        GameManager.OnGameStateChanged += HandleGameStateChanged;
+    }
+
+    private void OnDisable()
+    {
+        GameManager.OnGameStateChanged -= HandleGameStateChanged;
+    }
 
     private void Start()
     {
-        // If not assigned in Inspector, try to get it
+        // If audioSource not assigned, try local
         if (audioSource == null)
             audioSource = GetComponent<AudioSource>();
 
+        // Start the repeated cycle
         StartCoroutine(RedGreenCycle());
     }
 
     private IEnumerator RedGreenCycle()
     {
-        while (true)
+        // Repeats as long as the game isn't over or won
+        while (!_stopCycle)
         {
-            // GREEN phase
-            IsRedLight = false;
-            Debug.LogWarning("Green Light");
-            
-            headRotator.GreenlightRotateHead();
-            
-            // Set up kokoAudio to loop for entire Green phase
-            
-            audioSource.loop = false;
-            audioSource.PlayOneShot(kokoAudio);
+            // --- GREEN PHASE ---
+            CurrentState = LightState.Green;
+            Debug.Log("Green Light");
+            if (headRotator != null) headRotator.GreenlightRotateHead();
 
-            // Wait for the green duration
-            yield return new WaitForSeconds(kokoAudio.length);
-
-            // End of Green phase: stop looping kokoAudio
-            audioSource.Stop();
-             // avoid re-looping if we do a one-shot next
-            
-            // RED phase
-            // Pick a random redLightDuration
-            redLightDuration = Random.Range(minGreenTime, maxGreenTime);
-            IsRedLight = true;
-            Debug.LogWarning("Red Light");
-
-            headRotator.RedlightRotateHead();
-            // Play turnAudio ONCE at the start of Red
-            audioSource.PlayOneShot(turnAudio);
-
-            // If needed, do a position check or something
-            if (playerScan != null)
+            if (greenLoopAudio != null && audioSource != null)
             {
-                playerScan.GetLatestCameraPosition();
+                audioSource.loop = false;
+                audioSource.PlayOneShot(greenLoopAudio);
+                yield return new WaitForSeconds(greenLoopAudio.length);
+                audioSource.Stop();
+            }
+            else
+            {
+                // If no clip assigned, just wait a default 3 seconds
+                yield return new WaitForSeconds(3f);
             }
 
-            // Wait for the red duration
-            yield return new WaitForSeconds(redLightDuration);
+            if (_stopCycle) yield break; // break if game ended mid-phase
 
-            // (After waiting, the loop goes back to GREEN)
+            // --- RED PHASE ---
+            CurrentState = LightState.Red;
+            Debug.Log("Red Light");
+            if (headRotator != null) headRotator.RedlightRotateHead();
+
+            if (redStartAudio != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(redStartAudio);
+            }
+
+            // Pick random Red duration
+            float redDuration = Random.Range(minRedDuration, maxRedDuration);
+            float timer = 0f;
+            while (timer < redDuration && !_stopCycle)
+            {
+                timer += Time.deltaTime;
+                yield return null;
+            }
+        }
+    }
+
+    private void HandleGameStateChanged(LightState newState)
+    {
+
+        if (newState is LightState.GameOver or LightState.Won)
+        {
+            _stopCycle = true;
+            // Optionally set CurrentState = newState if you want to finalize.
+            // Or leave it as Red if it was in the middle of Red.
         }
     }
 }

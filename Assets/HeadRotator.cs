@@ -1,32 +1,31 @@
 using UnityEngine;
-using DG.Tweening; // Don't forget this namespace for DOTween
+using DG.Tweening;
 
 public class HeadRotator : MonoBehaviour
 {
-    [SerializeField] private GameObject head;
+    [SerializeField] private Transform head;
+    [SerializeField] private float rotationDuration = 0.6f;
 
-    // Duration of the rotation in seconds
-    private float rotationDuration = 0.6f;
+    private Vector3 greenRotation = new Vector3(-90f, 0f, 0f);
+    private Vector3 redRotation   = new Vector3(-90f, 0f, -180f);
 
     private void Start()
     {
+        if (head == null) head = transform; // fallback
+        head.rotation = Quaternion.Euler(greenRotation);
+    }
 
-        head.transform.rotation = Quaternion.Euler(new Vector3(-90f,0f,0f));
+    public void GreenlightRotateHead()
+    {
+        head
+            .DORotate(greenRotation, rotationDuration)
+            .SetEase(Ease.Linear);
     }
 
     public void RedlightRotateHead()
     {
-
-        head.transform
-            .DORotate(new Vector3(-90f, 0, -180f), rotationDuration)
-            .SetEase(Ease.Linear);
-    }
-    
-    public void GreenlightRotateHead()
-    {
-
-        head.transform
-            .DORotate(new Vector3(-90f,0f,0f), rotationDuration)
+        head
+            .DORotate(redRotation, rotationDuration)
             .SetEase(Ease.Linear);
     }
 }

@@ -3,35 +3,45 @@ using UnityEngine;
 
 public class Timer : MonoBehaviour
 {
-    // Set this to 300 for 5:00 (5 minutes * 60 seconds)
-    [SerializeField] private float timeRemaining = 300f;
-    
+    [SerializeField] private float timeRemaining = 300f; // 5 minutes
     private TextMeshProUGUI timerText;
+
+    [Header("References")]
+    [SerializeField] private GameManager gameManager; // Assign in inspector
+
+    private bool _timeIsUp;
 
     void Start()
     {
-        // Get the TextMeshProUGUI component on the same GameObject
+        // Find the TextMeshProUGUI on this object or a child
         timerText = GetComponentInChildren<TextMeshProUGUI>();
     }
 
     void Update()
     {
-        // Only decrease time if it's above 0
-        if (timeRemaining > 0)
+        if (_timeIsUp) return;
+        if (timeRemaining <= 0) return;
+
+        // Decrease time
+        timeRemaining -= Time.deltaTime;
+        if (timeRemaining <= 0)
         {
-            timeRemaining -= Time.deltaTime;
-            // Clamp the time to 0, so it doesn't go negative
-            if (timeRemaining < 0)
+            timeRemaining = 0;
+            _timeIsUp = true;
+
+            // If the player hasn't won yet, declare game over
+            if (!gameManager.HasPlayerWon())
             {
-                timeRemaining = 0;
+                gameManager.SetGameOver();
             }
         }
 
-        // Calculate minutes and seconds
+        // Update UI
         int minutes = Mathf.FloorToInt(timeRemaining / 60);
         int seconds = Mathf.FloorToInt(timeRemaining % 60);
-
-        // Update the text in the format "M:SS"
-        timerText.text = $"{minutes}:{seconds:00}";
+        if (timerText != null)
+        {
+            timerText.text = $"{minutes}:{seconds:00}";
+        }
     }
 }
