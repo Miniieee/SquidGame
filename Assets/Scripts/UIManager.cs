@@ -25,4 +25,9 @@ public class UIManager : MonoBehaviour
     {
         SceneManager.LoadScene(1);
     }
+    
+    private void OnDisable()
+    {
+        GameManager.OnGameStateChanged -= HandleGameStateChanged;
+    }
 }
