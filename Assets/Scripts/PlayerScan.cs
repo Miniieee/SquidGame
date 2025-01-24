@@ -69,8 +69,10 @@ public class PlayerScan : MonoBehaviour
                     Debug.Log("Player eliminated (moved during Red).");
                     
                     Rigidbody playerRb = player.GetComponent<Rigidbody>();
+                    PlayerMovement playerMovement = player.GetComponent<PlayerMovement>();
+                    //playerMovement.enabled = false;
                     playerRb.constraints = RigidbodyConstraints.None;
-                    playerRb.AddForce(Vector3.forward * 10000f);
+                    //playerRb.AddForce(Vector3.forward * 1f);
                     
                     gameManager.SetGameOver();
                 }
