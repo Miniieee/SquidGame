@@ -67,13 +67,6 @@ public class PlayerScan : MonoBehaviour
                 if (positionChanged || rotationChanged)
                 {
                     Debug.Log("Player eliminated (moved during Red).");
-                    
-                    Rigidbody playerRb = player.GetComponent<Rigidbody>();
-                    PlayerMovement playerMovement = player.GetComponent<PlayerMovement>();
-                    //playerMovement.enabled = false;
-                    playerRb.constraints = RigidbodyConstraints.None;
-                    //playerRb.AddForce(Vector3.forward * 1f);
-                    
                     gameManager.SetGameOver();
                 }
             }
