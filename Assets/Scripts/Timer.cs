@@ -27,10 +27,7 @@ public class Timer : MonoBehaviour
             timeRemaining = 0;
             _timeIsUp = true;
             
-            if (!gameManager.HasPlayerWon())
-            {
-                gameManager.SetGameOver();
-            }
+            gameManager.SetGameOver();
         }
         
         int minutes = Mathf.FloorToInt(timeRemaining / 60);

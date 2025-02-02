@@ -1,23 +1,30 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 
 public class UIManager : MonoBehaviour
 {
-    [SerializeField] private GameObject gameOverPanel;
+    [FormerlySerializedAs("gameOverPanel")] [SerializeField] private GameObject lostPanel;
+    [SerializeField] private GameObject winPanel;
     
     private GameManager gameManager;
     void Start()
     {
         gameManager = GetComponent<GameManager>();
         GameManager.OnGameStateChanged += HandleGameStateChanged;
-        gameOverPanel.SetActive(false);
+        lostPanel.SetActive(false);
     }
 
     private void HandleGameStateChanged(LightState state)
     {
         if (state == LightState.GameOver)
         {
-            gameOverPanel.SetActive(true);
+            lostPanel.SetActive(true);
+        }
+
+        if (state == LightState.Won)
+        {
+            winPanel.SetActive(true);
         }
     }
     

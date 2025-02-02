@@ -13,8 +13,9 @@ public class PlayerScan : MonoBehaviour
     [Header("References")]
     [SerializeField] private GameManager gameManager;
 
-    private GameObject player;
-    private CinemachineCamera vcam;
+    private GameObject playerObject;
+    private CinemachineCamera virtualCam;
+    private Player player;
     
     private Vector3 lastCameraPos;
     private Vector3 lastCameraEuler;
@@ -36,22 +37,25 @@ public class PlayerScan : MonoBehaviour
 
     private void Start()
     {
-        player = GameObject.FindGameObjectWithTag("Player");
-        vcam = player.GetComponentInChildren<CinemachineCamera>();
+        playerObject = GameObject.FindGameObjectWithTag("Player");
+        virtualCam = playerObject.GetComponentInChildren<CinemachineCamera>();
+        player = playerObject.GetComponent<Player>();
     }
 
     private void Update()
     {
         if (!_isRed || !_canScan) return;
         
-        Vector3 directionToPlayer = player.transform.position - transform.position;
+        Vector3 directionToPlayer = playerObject.transform.position - transform.position;
 
         if (Physics.Raycast(transform.position, directionToPlayer, out RaycastHit hit, Mathf.Infinity, layerMask))
         {
-            if (hit.collider.gameObject == player)
+            if(player.HasReachedFinish) return;
+            
+            if (hit.collider.gameObject == playerObject)
             {
-                Vector3 currentCamPos = vcam.transform.position;
-                Vector3 currentCamEuler = vcam.transform.eulerAngles;
+                Vector3 currentCamPos = virtualCam.transform.position;
+                Vector3 currentCamEuler = virtualCam.transform.eulerAngles;
 
                 bool positionChanged =
                     Mathf.Abs(currentCamPos.x - lastCameraPos.x) > positionThreshold ||
@@ -83,11 +87,10 @@ public class PlayerScan : MonoBehaviour
         {
             _isRed = true;
 
-            if (vcam != null)
-            {
-                lastCameraPos = vcam.transform.position;
-                lastCameraEuler = vcam.transform.eulerAngles;
-            }
+            if (virtualCam == null) return;
+            
+            lastCameraPos = virtualCam.transform.position;
+            lastCameraEuler = virtualCam.transform.eulerAngles;
         }
         else
         {

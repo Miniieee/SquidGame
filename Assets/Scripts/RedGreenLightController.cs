@@ -99,5 +99,7 @@ public class RedGreenLightController : MonoBehaviour
             // Optionally set CurrentState = newState if you want to finalize.
             // Or leave it as Red if it was in the middle of Red.
         }
+        
+        Debug.LogError("Game State Changed: " + newState);
     }
 }

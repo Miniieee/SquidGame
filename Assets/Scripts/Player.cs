@@ -6,6 +6,9 @@ public class Player : MonoBehaviour
 {
      //private GameManager gameManager;
     private CinemachineInputAxisController inputAxisController;
+    private PlayerMovement playerMovement;
+    private bool hasReachedFinish;
+    public bool HasReachedFinish {get => hasReachedFinish; set => hasReachedFinish = value;}
     
     void Start()
     {
@@ -15,10 +18,21 @@ public class Player : MonoBehaviour
 
     private void HandleGameStateChanged(LightState state)
     {
-        if (state == LightState.GameOver)
+        if (state is LightState.GameOver or LightState.Won)
         {
             inputAxisController = GetComponentInChildren<CinemachineInputAxisController>();
+            playerMovement = GetComponent<PlayerMovement>();
             inputAxisController.enabled = false;
+            playerMovement.enabled = false;
+        }
+    }
+
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.CompareTag("FinishLine"))
+        {
+            hasReachedFinish = true;
         }
     }
 

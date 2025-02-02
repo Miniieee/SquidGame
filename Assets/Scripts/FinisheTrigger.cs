@@ -12,6 +12,7 @@ public class FinishTrigger : MonoBehaviour
         {
             // If the player reaches the box, they win
             gameManager.SetPlayerWon();
+            Debug.LogWarning("Player has reached the finish line!");
         }
     }
 }
