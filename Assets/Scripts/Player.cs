@@ -25,6 +25,8 @@ public class Player : MonoBehaviour
             inputAxisController.enabled = false;
             playerMovement.enabled = false;
         }
+
+        //disable xr movement
     }
 
 
