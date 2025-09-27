@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - FinishLine
+  - PlayerHead
+  - PlayerLeftHand
+  - PlayerRightHand
   layers:
   - Default
   - TransparentFX
