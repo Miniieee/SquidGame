@@ -10,6 +10,7 @@ public class Player : MonoBehaviour
     private bool hasReachedFinish;
     public bool HasReachedFinish {get => hasReachedFinish; set => hasReachedFinish = value;}
     private ContinuousMoveProvider _continuousMoveProvider;
+    private float moveSpeed = 1.5f;
 
     void Start()
     {
