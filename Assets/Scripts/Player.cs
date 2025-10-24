@@ -8,6 +8,10 @@ public class Player : MonoBehaviour
 {
      //private GameManager gameManager;
     private bool hasReachedFinish;
+    public bool HasReachedFinish { get => hasReachedFinish; set => hasReachedFinish = value; }
+    
+    [SerializeField] private GameObject vrCameraRig;
+    
     public bool HasReachedFinish {get => hasReachedFinish; set => hasReachedFinish = value;}
     private ContinuousMoveProvider _continuousMoveProvider;
     private float moveSpeed = 1.5f;
