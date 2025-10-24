@@ -8,7 +8,9 @@ public class Player : MonoBehaviour
     private CinemachineInputAxisController inputAxisController;
     private PlayerMovement playerMovement;
     private bool hasReachedFinish;
-    public bool HasReachedFinish {get => hasReachedFinish; set => hasReachedFinish = value;}
+    public bool HasReachedFinish { get => hasReachedFinish; set => hasReachedFinish = value; }
+    
+    [SerializeField] private GameObject vrCameraRig;
     
     void Start()
     {
