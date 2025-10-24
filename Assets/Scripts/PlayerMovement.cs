@@ -1,70 +1,75 @@
+using System;
+using Unity.Cinemachine;
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
 public class PlayerMovement : MonoBehaviour
 {
-    private const float GravityValue = -9.81f;
-
-    [SerializeField] private float playerSpeed;
-    [SerializeField] private float sprintSpeed;
-
-    private CharacterController controller;
-    private Vector3 playerVelocity;
-    private bool groundedPlayer;
-
-    private InputManager inputManager;
-    private Transform cameraTransform;
-
-    private void Start()
+    [SerializeField] private float acceleration;
+    [SerializeField] private float deceleration;
+    [SerializeField] private float maxSpeed;
+    [SerializeField] private float minSpeed;
+    [SerializeField] private Transform cameraTransform;
+    
+    private InputActions inputActions;
+    private Vector3 currentMovement;
+    private Vector2 currentmovementInput;
+    private Rigidbody rigidBody;
+    private Vector2 currentMovementInput;
+    
+    private void Awake()
     {
-        Initialize();
+        inputActions = new InputActions();
+        rigidBody = GetComponent<Rigidbody>();
     }
 
-    private void Initialize()
+    private void OnEnable()
     {
-        inputManager = InputManager.Instance;
-        if (Camera.main != null) cameraTransform = Camera.main.transform;
-
-        controller = gameObject.GetComponent<CharacterController>();
+        inputActions.Enable();
     }
+
+    private void OnDisable()
+    {
+        inputActions.Disable();
+    }
+
 
     private void Update()
     {
-        Move();
+        currentMovementInput = inputActions.Player.Move.ReadValue<Vector2>();
+        
+        if (!cameraTransform)
+        {
+            currentMovement = new Vector3(currentMovementInput.x, 0f, currentMovementInput.y);
+        }
+        else
+        {
+            Vector3 camForward = cameraTransform.forward;
+            camForward.y = 0f;
+            camForward.Normalize();
+
+            Vector3 camRight = cameraTransform.right;
+            camRight.y = 0f;
+            camRight.Normalize();
+            currentMovement = camForward * currentMovementInput.y + camRight * currentMovementInput.x;
+        }
     }
 
-    private void Move()
+    private void FixedUpdate()
     {
-        groundedPlayer = controller.isGrounded;
-
-        if (groundedPlayer && playerVelocity.y < 0)
+        //could be currentMovement.magnitude but less efficient
+        if (currentMovement != Vector3.zero) 
         {
-            playerVelocity.y = -2f; // Ensure the player stays grounded
+            rigidBody.AddForce(currentMovement.normalized * acceleration, ForceMode.Acceleration);
+            
+            if (rigidBody.linearVelocity.magnitude > maxSpeed)
+            {
+                rigidBody.linearVelocity = rigidBody.linearVelocity.normalized * maxSpeed;
+            }
         }
-
-        Vector2 input = inputManager.GetPlayerMovement();
-
-        // Calculate the camera forward and right directions
-        Vector3 cameraForward = cameraTransform.forward;
-        Vector3 cameraRight = cameraTransform.right;
-
-        // Project camera directions onto the horizontal plane (y = 0)
-        cameraForward.y = 0f;
-        cameraRight.y = 0f;
-        cameraForward.Normalize();
-        cameraRight.Normalize();
-
-        // Calculate the movement direction based on camera directions
-        Vector3 moveDirection = cameraForward * input.y + cameraRight * input.x;
-
-        moveDirection.Normalize();
-
-        float currentSpeed = inputManager.GetSprint() ? sprintSpeed : playerSpeed;
-
-        // Move the player
-        controller.Move(moveDirection * (currentSpeed * Time.deltaTime));
-
-        // Apply gravity
-        playerVelocity.y += GravityValue * Time.deltaTime;
-        controller.Move(playerVelocity * Time.deltaTime);
+        else
+        {
+            rigidBody.AddForce(- rigidBody.linearVelocity.normalized * deceleration, ForceMode.Acceleration);
+        }
     }
 }

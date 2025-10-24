@@ -2,8 +2,10 @@ using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
-    private InputActions playerControls;
+    private InputActions inputActions;
     private static InputManager instance;
+    
+    
 
     public static InputManager Instance
     {
@@ -24,33 +26,32 @@ public class InputManager : MonoBehaviour
             instance = this;
         }
 
-        playerControls = new InputActions();
+        inputActions = new InputActions();
     }
-
-
+    
     public Vector2 GetPlayerMovement()
     {
-        return playerControls.Player.Move.ReadValue<Vector2>();
+        return inputActions.Player.Move.ReadValue<Vector2>();
     }
 
     public Vector2 GetMouseDelta()
     {
-        return playerControls.Player.Look.ReadValue<Vector2>();
+        return inputActions.Player.Look.ReadValue<Vector2>();
     }
 
     public bool GetSprint()
     {
-        return playerControls.Player.Sprint.IsPressed();
+        return inputActions.Player.Sprint.IsPressed();
     }
 
 
     private void OnEnable()
     {
-        playerControls.Enable();
+        inputActions.Enable();
     }
 
     private void OnDisable()
     {
-        playerControls.Disable();
+        inputActions.Disable();
     }
 }

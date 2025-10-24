@@ -2,5 +2,6 @@ public enum LightState
 {
     Green,
     Red,
-    GameOver
+    GameOver,
+    Won
 }

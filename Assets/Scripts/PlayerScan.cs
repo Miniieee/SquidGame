@@ -1,120 +1,152 @@
 using UnityEngine;
-using Unity.Cinemachine;  // If using Cinemachine; otherwise adjust accordingly
+using UnityEngine.XR.Interaction.Toolkit;
+using Unity.XR.CoreUtils;
 
 public class PlayerScan : MonoBehaviour
 {
     [Header("Thresholds")]
-    [SerializeField] private float positionThreshold = 0.1f;
-    [SerializeField] private float rotationThreshold = 5f; // degrees per Euler axis
-    
-    [Header("Layer Setup")]
-    [SerializeField] private string groundLayerName = "Ground";
-    private int groundLayerIndex;
-    private int layerMaskExcludingGround;
-    
-    public LayerMask layerMaskExcludingGround2;
-    
-    [SerializeField] RedGreenLightController redGreenLightController;
+    [SerializeField] private float positionThreshold = 0.10f; // meters
+    [SerializeField] private float rotationThreshold = 5f;     // degrees
 
-    private GameObject player;
-    private CinemachineCamera vcam;  // Or CinemachineCamera if you have a custom script
-    
-    // Store the last-known camera position/rotation
-    private Vector3 lastCameraPos;
-    private Vector3 lastCameraEuler;
+    [Header("Layer Mask")]
+    [SerializeField] private LayerMask layerMask = ~0;
 
-    private void Awake()
+    [Header("References")]
+    [SerializeField] private GameManager gameManager;
+    private XROrigin _xrOrigin;            // Player root (XR rig)
+    private Transform _headObject;        // Usually xrOrigin.Camera.transform
+    [SerializeField] private Transform _leftHandObject;    // Controller/hand transform
+    [SerializeField] private Transform _rightHandObject;   // Controller/hand transform
+    private bool trackHands = true;
+
+
+    // Optional: still use your Player script (for HasReachedFinish)
+    private Player player;
+
+    // Snapshot pose when Red turns on
+    private Vector3 _lastHeadPos;
+    private Quaternion _lastHeadRot;
+
+    private Vector3 _lastLeftPos;
+    private Quaternion _lastLeftRot;
+
+    private Vector3 _lastRightPos;
+    private Quaternion _lastRightRot;
+
+    private bool _isRed;
+    private bool _canScan = true;
+
+    private void OnEnable()
     {
-        // Find the layer index by name
-        groundLayerIndex = LayerMask.NameToLayer(groundLayerName);
-        if (groundLayerIndex == -1)
-        {
-            Debug.LogError($"No layer named '{groundLayerName}' found. Check your Project Settings → Tags and Layers.");
-        }
-
-        // Create a mask that excludes the Ground layer
-        layerMaskExcludingGround = groundLayerIndex;
+        RedGreenLightController.OnLightStateChanged += OnLightStateChanged;
+        GameManager.OnGameStateChanged += OnGameStateChanged;
     }
 
-    private void Start()
+    private void OnDisable()
     {
-        // Find the player by tag
-        player = GameObject.FindGameObjectWithTag("Player");
-        if (player == null)
+        RedGreenLightController.OnLightStateChanged -= OnLightStateChanged;
+        GameManager.OnGameStateChanged -= OnGameStateChanged;
+    }
+
+    private async void Start()
+    {
+        _xrOrigin = FindFirstObjectByType<XROrigin>();
+        _headObject = GameObject.FindGameObjectWithTag("MainCamera").transform;
+
+        player = _xrOrigin.GetComponent<Player>();
+    }
+
+   void Update()
+{
+    if (!_isRed || !_canScan) return;
+    if (_headObject == null || _xrOrigin == null) return;
+    if (player != null && player.HasReachedFinish) return;
+
+    Vector3 toHead = _headObject.position - transform.position;
+    float distToHead = toHead.magnitude;
+    Vector3 dir = toHead / distToHead;
+
+    // Raycast up to the head distance; if we hit something BEFORE the head that's not part of the rig, it's occluded.
+    if (Physics.Raycast(transform.position, dir, out RaycastHit hit, distToHead, layerMask, QueryTriggerInteraction.Ignore))
+    {
+        if (!hit.transform.IsChildOf(_xrOrigin.transform))
         {
-            Debug.LogError("No GameObject with tag 'Player' found in the scene!");
-            enabled = false;
+            // Something else is in front of the head -> occluded; skip this frame.
             return;
         }
-
-        // Find the Cinemachine Virtual Camera in the player's children
-        vcam = player.GetComponentInChildren<CinemachineCamera>();
-        if (vcam == null)
-        {
-            Debug.LogError($"No CinemachineVirtualCamera found as a child of '{player.name}'.");
-            enabled = false;
-            return;
-        }
-
-        // Initialize last-known camera position and rotation (in Euler angles)
-        lastCameraPos = vcam.transform.position;
-        lastCameraEuler = vcam.transform.eulerAngles;
     }
-    
-    public void GetLatestCameraPosition()
+    // If we didn’t hit anything up to the head, assume clear line of sight.
+
+    bool moved =
+        PositionDeltaExceeded(_headObject.position, _lastHeadPos) ||
+        RotationDeltaExceeded(_headObject.rotation, _lastHeadRot);
+
+    if (trackHands)
     {
-        lastCameraPos = vcam.transform.position;
-        lastCameraEuler = vcam.transform.eulerAngles;
+        if (_leftHandObject != null)
+            moved |= PositionDeltaExceeded(_leftHandObject.position, _lastLeftPos) ||
+                     RotationDeltaExceeded(_leftHandObject.rotation, _lastLeftRot);
+
+        if (_rightHandObject != null)
+            moved |= PositionDeltaExceeded(_rightHandObject.position, _lastRightPos) ||
+                     RotationDeltaExceeded(_rightHandObject.rotation, _lastRightRot);
     }
 
-    private void Update()
+    if (moved)
     {
-        
-        if(!redGreenLightController.IsRedLight) return;
-        // Direction from this object to the player's main transform
-        Vector3 directionToPlayer = player.transform.position - transform.position;
+        Debug.Log("Player eliminated (moved during Red).");
+        gameManager?.SetGameOver();
+        _canScan = false;
+    }
+}
 
-        // Raycast, ignoring Ground layer
-        if (Physics.Raycast(transform.position, directionToPlayer, out RaycastHit hit, Mathf.Infinity, ~layerMaskExcludingGround))
+     private void OnLightStateChanged(LightState newState)
+    {
+        if (newState == LightState.Red)
         {
-            // If the first thing we hit is the player, it's not blocked
-            if (hit.collider.gameObject == player)
+            _isRed = true;
+
+            if (_headObject == null) return;
+
+            // Snapshot current poses
+            _lastHeadPos = _headObject.position;
+            _lastHeadRot = _headObject.rotation;
+
+            if (trackHands && _leftHandObject != null)
             {
-                // Check the camera's current position/rotation
-                Vector3 currentCamPos = vcam.transform.position;
-                Vector3 currentCamEuler = vcam.transform.eulerAngles;
-
-                // Compare each position axis
-                bool movedOnX = Mathf.Abs(currentCamPos.x - lastCameraPos.x) > positionThreshold;
-                bool movedOnY = Mathf.Abs(currentCamPos.y - lastCameraPos.y) > positionThreshold;
-                bool movedOnZ = Mathf.Abs(currentCamPos.z - lastCameraPos.z) > positionThreshold;
-
-                bool positionChanged = (movedOnX || movedOnY || movedOnZ);
-
-                // Compare each rotation axis (Euler angles)
-                bool rotatedOnX = Mathf.Abs(Mathf.DeltaAngle(lastCameraEuler.x, currentCamEuler.x)) > rotationThreshold;
-                bool rotatedOnY = Mathf.Abs(Mathf.DeltaAngle(lastCameraEuler.y, currentCamEuler.y)) > rotationThreshold;
-                bool rotatedOnZ = Mathf.Abs(Mathf.DeltaAngle(lastCameraEuler.z, currentCamEuler.z)) > rotationThreshold;
-
-                bool rotationChanged = (rotatedOnX || rotatedOnY || rotatedOnZ);
-
-                if (positionChanged || rotationChanged)
-                {
-                    Debug.Log($"Player '{player.name}' eliminated (camera moved/rotated).");
-                    // Place any elimination logic here (destroy player, disable components, etc.)
-                }
-                
+                _lastLeftPos = _leftHandObject.position;
+                _lastLeftRot = _leftHandObject.rotation;
             }
-            else
+            if (trackHands && _rightHandObject != null)
             {
-                // The ray is blocked by something else
-                Debug.Log($"Ray blocked by '{hit.collider.gameObject.name}'. Skipping checks on player '{player.name}'.");
+                _lastRightPos = _rightHandObject.position;
+                _lastRightRot = _rightHandObject.rotation;
             }
         }
         else
         {
-            // We didn't hit anything (excluding the Ground layer)
-            Debug.Log($"No hit (excluding '{groundLayerName}' layer) for player '{player.name}'.");
+            _isRed = false;
         }
+    }
+
+    private void OnGameStateChanged(LightState newState)
+    {
+        if (newState is LightState.GameOver or LightState.Won)
+        {
+            _canScan = false;
+        }
+    }
+
+    // ---- Helpers ----
+
+    private bool PositionDeltaExceeded(Vector3 current, Vector3 last)
+    {
+        // Spherical distance feels better in VR than per-axis thresholds
+        return Vector3.Distance(current, last) > positionThreshold;
+    }
+
+    private bool RotationDeltaExceeded(Quaternion current, Quaternion last)
+    {
+        return Quaternion.Angle(last, current) > rotationThreshold;
     }
 }
